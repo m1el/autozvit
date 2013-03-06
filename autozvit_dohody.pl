@@ -1,0 +1,16 @@
+use helper;
+my $month = read_month();
+  log0 "loading data...\n";
+create_db("tmp/temp.sqlt");
+load_dbf("in/FR325R4.dbf", "FR325R4", ["kmb", "fcode"]);
+load_dbf("in/FZ325R4.dbf", "FZ325R4", ["kmb", "fcode"]);
+load_dbf("out/W2532${month}Z2M_1.dbf", "out", ["KOD", "ID_KEY"]);
+  log0 "loaded dbfs...\n";
+load_csv("kod_keys.csv", "kod_keys", ["KOD", "ID_KEY"]);
+  log0 "data loaded, processing...\n";
+exec_sql_file("dohody.sql");
+  log0 "processing done, exporting data...\n";
+clear_file("dohody.txt");
+append_report("Отсутствующие строки доходов", "dohody_miss", "dohody.txt");
+update_dbf("out/W2532${month}Z2M_1.dbf", "out", ["N1"]);
+  log0 "export done, everything seems to be OK.\n";

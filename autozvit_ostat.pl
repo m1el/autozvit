@@ -1,0 +1,15 @@
+use helper;
+# my $year = read_year();
+my $month = read_month();
+my $date = read_date();
+ log0 "loading dbfs...\n";
+create_db("tmp/temp.sqlt");
+load_dbf("in/OSTAT.DBF", "ostat", ["SCET"]);
+load_dbf("in/3142/SAL_${month}${date}.DBF", "sal_3142", ["ACCOUNT"]);
+load_dbf("in/3152/SAL_${month}${date}.DBF", "sal_3152", ["ACCOUNT"]);
+ log0 "data loaded, processing and generating report...\n";
+exec_sql_file("ostat.sql");
+clear_file("ostat.txt");
+append_report("Розбіжності 3142", "ostat_3142", "ostat.txt");
+append_report("Розбіжності 3152", "ostat_3152", "ostat.txt");
+ log0 "done. everything seems to be OK.\n";

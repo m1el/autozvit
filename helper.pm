@@ -1,12 +1,15 @@
 package helper;
 require Exporter;
 @ISA = qw(Exporter);
-@EXPORT = qw(log_ log0 create_db load_dbf update_dbf load_csv exec_sql exec_sql_file read_month clear_file append_report $dbh $loglevel);
+@EXPORT = qw(log_ log0 create_db load_dbf update_dbf load_csv
+	exec_sql exec_sql_file read_month read_year read_date
+	clear_file append_report lpad rpad $dbh $loglevel);
 
 use strict;
 use XBase;
 use DBI;
 use SQL::SplitStatement;
+use lib qw(perl/lib);
 
 our $loglevel = 0;
 our $sqlite;
@@ -34,7 +37,7 @@ sub mescape {
 
 sub load_csv{
 	my ($csv_name, $table, $indexes) = @_;
-	my $name = $2;
+	my $name = "csv";
 	my ($i, $o);
 	open $i, "<", "$csv_name" or die "sup";
 	open $o, ">", "tmp/tmp_$name.csv";
@@ -150,9 +153,9 @@ sub update_dbf{
 	disconnect_dbf($o_dbf);
 }
 sub exec_sql {
-	my ($query) = @_;
+	my ($query, @arg) = @_;
 	my $sth = $sqlite->prepare($query);
-	$sth->execute();
+	$sth->execute(@arg);
 	$sth;
 }
 
@@ -164,14 +167,35 @@ sub exec_sql_file {
 	}
 }
 
+sub read_date {
+	my $date = (localtime)[3];
+	print "Enter date (empty for $date): ";
+	$date = int(<>) || $date;
+	if ($date <= 0 || $date > 31) {
+		die "Year out of range\n";
+	}
+	return sprintf "%02d", $date;
+}
+
 sub read_month {
-	print "Enter month number: ";
-	my $month = int <>;
+	my $month = (localtime)[4] + 1;
+	print "Enter month number (empty for $month): ";
+	$month = int(<>) || $month;
 	if ($month < 1 || $month > 12) {
 		die "Month out of range\n";
 	}
 	return sprintf "%02d", $month;
 }
+sub read_year {
+	my $year = (localtime)[5] - 100;
+	print "Enter year number (empty for $year): ";
+	$year = int(<>) || $year;
+	if ($year < 0 || $year > 99) {
+		die "Year out of range\n";
+	}
+	return sprintf "%02d", $year;
+}
+
 
 sub clear_file {
 	open FH, ">", $_[0];
@@ -180,8 +204,9 @@ sub clear_file {
 }
 
 sub append_report {
-	my ($text, $table, $file, $sep) = @_;
-	$sep //= "\t";
+	my ($text, $table, $file, $format) = @_;
+	$text .= " " . join ".", map {sprintf "%02d", $_} (localtime)[3], (localtime)[4] + 1, (localtime)[5]-100;
+	my $sep = "\t";
 	open F, ">>", $file;
 	my $sth = $sqlite->prepare("SELECT * FROM `$table`");
 	$sth->execute();
@@ -189,10 +214,34 @@ sub append_report {
 	print F join $sep, @{$sth->{NAME}};
 	print F "\n";
 	while (my @row = $sth->fetchrow_array) {
-		print F join $sep, @row, "\n";
+		if($format) {
+			print F $format->(@row);
+		} else {
+			print F join $sep, @row, "\n";
+		}
 	}
 	print F "="x70, "\n";
 	close F;
+}
+sub lpad {
+	my ($str, $len, $pad) = @_;
+	$pad //= " ";
+	die "Pad length is zero!" if length $pad == 0;
+	$pad = substr($pad x$len, 0, $len);
+	if (length $str < $len) {
+		$str = substr($pad, 0, length $str - $len) . $str;
+	}
+	$str;
+}
+sub rpad {
+	my ($str, $len, $pad) = @_;
+	$pad //= " ";
+	die "Pad length is zero!" if length $pad == 0;
+	$pad = substr($pad x$len, 0, $len);
+	if (length $str < $len) {
+		$str .= substr($pad, 0, length $str - $len);
+	}
+	$str;
 }
 1;
 #perl2exe_include "feature.pm";
